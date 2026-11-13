@@ -150,9 +150,8 @@ input{font:inherit}
 <div class="bottom" id="bottom" hidden>
   <div class="cards" id="cards"></div>
   <div class="actions">
-    <button class="round" id="btnPose">포즈<br>바꾸기</button>
-    <button class="shutter" id="btnShot" aria-label="촬영"><i></i><span class="shl">촬영</span></button>
     <button class="round" id="btnGps">내 위치</button>
+    <button class="shutter" id="btnShot" aria-label="촬영"><i></i><span class="shl">촬영</span></button>
     <button class="round" id="btnMap">지도</button>
   </div>
 </div>
@@ -172,6 +171,7 @@ input{font:inherit}
       </div>
       <div class="bar" id="tgBar" hidden><i></i></div>
       <p id="tgMsg"></p>
+      <p id="diag" style="font-size:11.5px;word-break:break-all"></p>
       <div class="row" style="border:0;padding-bottom:0">
         <button class="btn ghost" id="tgExport">인식 파일 내려받기</button>
         <label class="btn ghost">파일 불러오기<input id="tgImport" type="file" accept=".mind,.json" multiple hidden></label>
@@ -332,7 +332,7 @@ async function startTracking(){
   try{
     setStatus('AR 엔진을 불러오는 중…');
     await loadScript(LIBS.aframe);await loadScript(LIBS.mind);
-  }catch(e){setStatus('AR 엔진을 불러오지 못해 미리보기 모드로 실행합니다','warn');return false}
+  }catch(e){S.lastErr=String(e&&e.message||e);setStatus('AR 엔진을 불러오지 못했습니다: '+S.lastErr.slice(0,60),'warn');return false}
   const blobUrl=URL.createObjectURL(new Blob([T.buf]));
   const ar=$('#ar');ar.hidden=false;
   const ents=T.aspects.map((asp,i)=>`
@@ -432,7 +432,7 @@ async function autoPrep(){
   try{
     await rebuild(p=>setStatus('가벽 인식 준비 중 '+Math.round(p)+'% · 처음 한 번만 1~2분 걸립니다','on'));
     const ok=await startTracking();if(!ok)pvRefresh();
-  }catch(err){console.error(err);setStatus('가벽 인식을 준비하지 못했습니다. 인터넷 연결을 확인하고 설정에서 다시 시도하세요','warn')}
+  }catch(err){console.error(err);S.lastErr=String(err&&err.message||err);setStatus('인식 준비 실패: '+S.lastErr.slice(0,70),'warn')}
 }
 function saveBlob(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
 $('#tgExport').addEventListener('click',()=>{
@@ -467,7 +467,6 @@ async function shoot(){
   },'image/png');
 }
 $('#btnShot').addEventListener('click',shoot);
-$('#btnPose').addEventListener('click',()=>{S.pose=(S.pose+1)%CH_SRC.length;if(S.mode==='track')trackRefresh();else pvRefresh()});
 
 /* ===== 설정 시트 ===== */
 $('#btnSet').addEventListener('click',()=>{$('#sheet').hidden=false});
@@ -515,6 +514,10 @@ async function mvSearch(){const q=$('#mvQ').value.trim();if(!q||!MAP)return;$('#
   catch(e){$('#mvInfo').textContent='검색에 실패했습니다. 지도를 직접 움직여주세요'}}
 $('#mvGo').addEventListener('click',mvSearch);$('#mvQ').addEventListener('keydown',e=>{if(e.key==='Enter')mvSearch()});
 
+/* ===== 진단 ===== */
+function diag(){const d=$('#diag');if(!d)return;
+  d.textContent=['https:'+(window.isSecureContext?'O':'X'),'카메라API:'+(navigator.mediaDevices?'O':'X'),'WebGL:'+(()=>{try{return document.createElement('canvas').getContext('webgl')?'O':'X'}catch(e){return 'X'}})(),'A-Frame:'+(window.AFRAME?'O':'X'),'MindAR:'+(window.MINDAR?'O':'X'),'인식사진:'+(S.targets?S.targets.aspects.length:0),'모드:'+S.mode,'오류:'+(S.lastErr||'없음')].join(' · ')}
+setInterval(diag,1500);
 /* ===== 시작 ===== */
 (function(){$('#tgStore').innerHTML=ALL_STORES.map(s=>`<option value="${s.id}">${s.name.length>16?s.name.slice(0,16)+'…':s.name}</option>`).join('')})();
 $('#go').addEventListener('click',async()=>{
